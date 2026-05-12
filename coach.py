@@ -6,46 +6,48 @@ Pure data/logic — no OpenCV or UI code here.
 """
 
 # Coaching messages tailored to how each emotion affects interviews
+# NOTE: Labels use plain ASCII only — cv2.putText cannot render emoji/Unicode
+#       on Windows without a custom TTF font pipeline.
 COACHING_TIPS = {
     "happy": {
-        "label": "😊 Happy",
-        "tip": "Great energy! Maintain this warmth — interviewers love engaged candidates.",
-        "color": (0, 200, 80),   # green
+        "label": "[HAPPY]",
+        "tip": "Great energy! Maintain this warmth -- interviewers love engaged candidates.",
+        "color": (0, 200, 80),    # green
     },
     "neutral": {
-        "label": "😐 Neutral",
+        "label": "[NEUTRAL]",
         "tip": "Good composure. Try adding a slight smile to appear more approachable.",
-        "color": (200, 200, 0),  # yellow
+        "color": (200, 200, 0),   # yellow
     },
     "sad": {
-        "label": "😢 Sad",
+        "label": "[SAD]",
         "tip": "You seem down. Take a breath, sit up tall, and recall a win to boost mood.",
-        "color": (200, 80, 0),   # orange
+        "color": (200, 80, 0),    # orange
     },
     "angry": {
-        "label": "😠 Angry",
+        "label": "[ANGRY]",
         "tip": "Tension detected. Relax your jaw, slow your breathing, stay calm.",
-        "color": (0, 0, 220),    # red (BGR)
+        "color": (0, 0, 220),     # red (BGR)
     },
     "fear": {
-        "label": "😨 Fearful",
-        "tip": "Nervousness is normal! Breathe deeply and remember — you prepared for this.",
-        "color": (180, 0, 180),  # purple
+        "label": "[FEARFUL]",
+        "tip": "Nervousness is normal! Breathe deeply -- you prepared for this.",
+        "color": (180, 0, 180),   # purple
     },
     "surprise": {
-        "label": "😲 Surprised",
+        "label": "[SURPRISED]",
         "tip": "Stay poised with unexpected questions. Pause, think, then answer.",
-        "color": (220, 130, 0),  # blue-ish (BGR)
+        "color": (220, 130, 0),   # orange-blue (BGR)
     },
     "disgust": {
-        "label": "🤢 Disgusted",
-        "tip": "Keep expressions neutral on tough topics — professionalism is key.",
-        "color": (0, 140, 180),  # olive-ish
+        "label": "[DISGUSTED]",
+        "tip": "Keep expressions neutral on tough topics -- professionalism is key.",
+        "color": (0, 140, 180),   # teal
     },
     "unknown": {
-        "label": "🤔 Detecting...",
+        "label": "[DETECTING]",
         "tip": "Move closer to the camera or improve lighting.",
-        "color": (150, 150, 150),  # gray
+        "color": (150, 150, 150), # gray
     },
 }
 

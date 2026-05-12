@@ -3,3 +3,5 @@ __pycache__/
 *.pyc
 .deepface/
 .env
+session_logs/
+reports/
