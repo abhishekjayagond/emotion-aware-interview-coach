@@ -1,44 +1,45 @@
 # Emotion-Aware Interview Coach
 
-A modular, real-time AI interview simulator built with Python, OpenCV, and DeepFace. It transforms a standard webcam feed into an immersive, analytic interview environment, combining facial emotion recognition with dynamic conversational flow.
+A Python-based interview practice tool built with OpenCV and DeepFace. It uses a webcam feed to analyze facial expressions and simulate a real-time interview environment, tracking composure and adapting questions based on how nervous or relaxed you appear.
 
-![Demo Placeholder](assets/demo/demo_placeholder.gif)
+![Demo](assets/demo/demo_placeholder.gif)
 
-## 📌 Project Overview
+## Project Overview
 
-This project was built to explore real-time computer vision and state-machine-driven UI within a single cohesive application. Instead of acting as a passive dashboard, it acts as an active coaching system: it asks questions, listens, analyzes facial expressions, and adjusts the interview difficulty based on your emotional composure.
+I built this project to explore real-time computer vision and state-machine-driven UI. Instead of just displaying raw webcam data, it acts as an interactive interviewer: it asks questions, tracks facial expressions, and adjusts the difficulty of follow-up questions based on emotional stability.
 
-**Important Note:** To keep this project lightweight and offline-friendly, it relies entirely on visual analysis and timing heuristics. It does *not* use a Large Language Model (LLM) backend for dynamic speech generation, nor does it perform actual audio transcription.
+**Note:** This project is designed to run locally and lightweight. It relies on visual heuristics and timing rather than LLMs for speech generation, and it doesn't process actual audio.
 
-## ✨ Key Features
+## Key Features
 
-- **Adaptive Conversational Engine**: Progresses naturally through interview stages (Intro, Technical, Behavioral, Situational) and adjusts question difficulty based on the candidate's detected nervousness or stability.
-- **Real-Time Emotion Tracking**: Uses `DeepFace` to analyze facial expressions, bolstered by custom temporal smoothing and minimum-size thresholds to eliminate background noise and flickering.
-- **Cinematic Glassmorphism UI**: High-density overlays rendered directly on the OpenCV frame using Pillow (PIL) for beautiful anti-aliased typography and rounded translucent panels.
-- **Simulated Communication Metrics**: Tracks "speaking pace" and "filler words" through clever heuristics tied to the interview state machine, providing a realistic coaching feel without heavy audio processing dependencies.
-- **Session Analytics Summary**: Upon ending the interview, generates a beautiful product-style summary overlay detailing overall composure, pace, and dominant emotions.
+- **Adaptive Interview Flow**: Progresses through standard interview stages (Intro, Technical, Behavioral, Situational). The questions get easier if it detects nervousness, and stay challenging if you appear calm.
+- **Emotion Tracking**: Uses `DeepFace` to read expressions. I added rolling-average smoothing and size thresholds to reduce jitter and ignore background noise.
+- **Custom OpenCV UI**: Built a clean interface drawn directly onto the video frames using Pillow (PIL) for better typography and translucent rounded panels.
+- **Simulated Speech Metrics**: Uses state machine timing to estimate metrics like speaking pace and filler words, giving the feel of a full communication analysis without heavy audio dependencies.
+- **Session Summary**: Generates a quick performance breakdown (composure score, pace, dominant emotions) when you end the session.
 
-## 🏗️ Architecture
+## Architecture
 
-The application is built completely modularly:
-- `main.py`: The core state machine managing interview stages, delays, and overlay injection.
-- `display.py`: Handles all UI rendering, using a custom anti-aliased Pillow-to-OpenCV masking technique for floating glassmorphism panels.
-- `emotion_detector.py`: Wraps the DeepFace model with a rolling-average smoothing algorithm and bounding-box validation.
-- `interview_questions.py`: Provides the dynamic, emotion-responsive question pool.
-- `session_logger.py` & `session_summary.py`: Manage data serialization to CSV and Matplotlib trend generation.
+The codebase is organized into modular components:
+- `main.py`: The main loop and state machine handling interview stages and overlay timing.
+- `display.py`: All UI rendering logic, including the Pillow-to-OpenCV masking for the UI panels.
+- `emotion_detector.py`: DeepFace integration with custom temporal smoothing to prevent flickering.
+- `interview_questions.py`: The question bank and logic for picking questions based on current emotion.
+- `session_logger.py` & `session_summary.py`: Handles CSV logging and Matplotlib graph generation.
 
-## 🚀 Setup & Usage
+## Setup & Usage
 
 ### 1. Requirements
-Ensure you have Python 3.9+ installed.
+You'll need Python 3.9+ installed.
 
 ```bash
 # Clone the repository
 git clone https://github.com/yourusername/emotion-aware-interview-coach.git
 cd emotion-aware-interview-coach
 
-# Set up a virtual environment (recommended)
+# Set up a virtual environment
 python -m venv venv
+
 # Windows:
 .\venv\Scripts\activate
 # Mac/Linux:
@@ -48,14 +49,14 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 2. Running the Simulator
+### 2. Running the App
 
-To start an interview session using your primary webcam:
+To start an interview session using your default webcam:
 ```bash
 python main.py
 ```
 
-To run it in **Demo Mode** (forces an animated avatar instead of the webcam, perfect for testing):
+To run it in **Demo Mode** (uses an animated avatar instead of the webcam, useful for testing the UI):
 ```bash
 python main.py --demo
 ```
@@ -65,19 +66,21 @@ To analyze a pre-recorded video:
 python main.py --source my_interview.mp4
 ```
 
-## 📸 Screenshots
+Press `Q` during the session to view your summary, and `Q` again to exit.
+
+## Screenshots
 
 *(Placeholders for future screenshots)*
 
-| Dashboard HUD | Session Summary |
+| Dashboard | Session Summary |
 |:---:|:---:|
 | ![HUD Placeholder](assets/screenshots/hud_placeholder.png) | ![Summary Placeholder](assets/screenshots/summary_placeholder.png) |
 
-## ⚠️ Limitations & Honesty
+## Limitations
 
-- **Heuristic Audio Metrics**: The "Pace" and "Filler Words" trackers are algorithmic heuristics designed to enhance the *feel* of the coaching environment. They do not process real audio.
-- **DeepFace Dependency**: Emotion detection relies heavily on lighting and face angle. Strong backlighting or extreme angles will degrade detection confidence.
-- **Hardware Requirements**: DeepFace is somewhat computationally expensive. While the app limits analysis to every Nth frame, it still requires a modern multi-core CPU or basic GPU for a smooth 30fps experience.
+- **Simulated Audio Metrics**: The "Pace" and "Filler Words" trackers are algorithmic estimates based on timing, not actual audio transcription.
+- **Detection Accuracy**: DeepFace relies on decent lighting and clear camera angles. Strong backlighting will drop the detection confidence.
+- **Performance**: DeepFace inference takes CPU/GPU resources. The app limits analysis to every 5th frame to maintain ~30fps on standard machines, but a modern CPU or basic GPU is recommended.
 
-## 📄 License
-This project is open-source and available under the [MIT License](LICENSE).
+## License
+MIT License
