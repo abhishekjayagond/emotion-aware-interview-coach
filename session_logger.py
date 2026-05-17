@@ -105,7 +105,7 @@ def save_csv(output_dir: str = ".") -> str:
                 rec["timestamp"].strftime("%Y-%m-%d %H:%M:%S.%f")[:-3],
                 rec["emotion"],
                 rec["confidence"],
-                json.dumps({k: round(v, 2) for k, v in rec["scores"].items()}),
+                json.dumps({k: round(float(v), 2) for k, v in rec["scores"].items()}),
             ])
 
     print(f"[Logger] CSV saved -> {fpath}")

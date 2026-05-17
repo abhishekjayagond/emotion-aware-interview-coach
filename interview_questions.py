@@ -1,79 +1,95 @@
 """
 interview_questions.py
 ----------------------
-Provides a rotating pool of realistic interview questions that are
-displayed on-screen during the coaching session.
-
-Questions are grouped by category so future expansion is easy.
+Handles interview progression and dynamic question generation.
+Adapts to the user's detected emotional state to simulate a real interviewer.
 """
 
 import random
 
-# ── Question bank ─────────────────────────────────────────────────────────────
-_QUESTIONS: list[tuple[str, str]] = [
-    # (category, question)
-    ("Behavioural",  "Tell me about yourself and your career journey so far."),
-    ("Behavioural",  "Describe a time you handled a difficult team conflict."),
-    ("Behavioural",  "Give an example of a project you led from start to finish."),
-    ("Behavioural",  "Tell me about a mistake you made and what you learned."),
-    ("Behavioural",  "Describe a situation where you had to meet a tight deadline."),
-    ("Behavioural",  "How do you prioritise when you have multiple urgent tasks?"),
-    ("Behavioural",  "Tell me about a time you received critical feedback."),
-    ("Behavioural",  "Describe your biggest professional achievement to date."),
-    ("Behavioural",  "How have you dealt with an underperforming colleague?"),
-    ("Behavioural",  "Tell me about a risk you took and its outcome."),
+STAGES = ["Intro", "Technical", "Behavioral", "Situational", "Wrap-up"]
 
-    ("Technical",    "Explain the difference between a stack and a queue."),
-    ("Technical",    "What is Big-O notation and why does it matter?"),
-    ("Technical",    "Walk me through how you would debug a production issue."),
-    ("Technical",    "How does garbage collection work in your primary language?"),
-    ("Technical",    "Explain REST vs GraphQL — when would you use each?"),
-    ("Technical",    "What design patterns have you applied in your projects?"),
-    ("Technical",    "How do you approach writing unit tests for complex logic?"),
-    ("Technical",    "Describe the differences between SQL and NoSQL databases."),
-    ("Technical",    "What is the CAP theorem?"),
-    ("Technical",    "How would you design a URL shortener like bit.ly?"),
+_QUESTIONS = {
+    "Intro": {
+        "calm": [
+            "Tell me about yourself and your career journey.",
+            "Walk me through your resume."
+        ],
+        "nervous": [
+            "Welcome! Let's start easy. What's a project you really enjoyed working on?",
+            "Thanks for taking the time today. How has your week been so far?"
+        ]
+    },
+    "Technical": {
+        "calm": [
+            "Explain REST vs GraphQL. When would you use each?",
+            "How do you approach writing unit tests for complex logic?",
+            "What design patterns have you applied in your recent projects?"
+        ],
+        "nervous": [
+            "What's a programming language or tool you feel most comfortable with?",
+            "Can you explain a technical concept you recently learned?",
+            "Walk me through how you usually debug an issue."
+        ]
+    },
+    "Behavioral": {
+        "calm": [
+            "Describe a time you handled a difficult team conflict.",
+            "Tell me about a risk you took and its outcome.",
+            "How do you prioritize when you have multiple urgent tasks?"
+        ],
+        "nervous": [
+            "Tell me about a time when a team project went really well.",
+            "What's an accomplishment you're most proud of?",
+            "How do you usually like to organize your daily work?"
+        ]
+    },
+    "Situational": {
+        "calm": [
+            "What would you do if a key team member quit mid-project?",
+            "How would you handle receiving contradictory instructions from two managers?",
+            "A client is unhappy with your work — walk me through how you handle it."
+        ],
+        "nervous": [
+            "If you were stuck on a problem, how would you go about finding help?",
+            "Imagine you're joining a new team. What's your first step to onboard?",
+            "How do you stay productive and focused when working remotely?"
+        ]
+    },
+    "Wrap-up": {
+        "calm": [
+            "Where do you see yourself in five years?",
+            "Do you have any questions for us about the role or company?"
+        ],
+        "nervous": [
+            "You did great today! Do you have any questions for us?",
+            "Thanks for your time. Is there anything else you'd like to share?"
+        ]
+    }
+}
 
-    ("Situational",  "How would you handle receiving contradictory instructions?"),
-    ("Situational",  "What would you do if a key team member quit mid-project?"),
-    ("Situational",  "How would you respond if you disagreed with your manager?"),
-    ("Situational",  "What steps would you take if you missed a deadline?"),
-    ("Situational",  "How would you on-board yourself in a new team?"),
-    ("Situational",  "You have two equally urgent tasks — how do you decide?"),
-    ("Situational",  "A client is unhappy with your work — walk me through it."),
-    ("Situational",  "How would you motivate a team that has lost momentum?"),
-    ("Situational",  "What would you do if you spotted an ethical issue at work?"),
-    ("Situational",  "How do you stay productive when working remotely?"),
-
-    ("Career",       "Where do you see yourself in five years?"),
-    ("Career",       "Why are you leaving your current role?"),
-    ("Career",       "Why do you want to work at this company specifically?"),
-    ("Career",       "What motivates you most in a work environment?"),
-    ("Career",       "How do you keep your skills up to date?"),
-    ("Career",       "What are your greatest strengths and weaknesses?"),
-    ("Career",       "What kind of management style brings out your best work?"),
-    ("Career",       "How do you define success in your role?"),
-    ("Career",       "What would your previous manager say about you?"),
-    ("Career",       "Do you have any questions for us?"),
-]
-
-# ── Public API ────────────────────────────────────────────────────────────────
-
-def get_random_question() -> tuple[str, str]:
+def get_question_for_stage(stage: str, emotion: str) -> tuple[str, str]:
     """
-    Return a random (category, question) tuple from the question bank.
+    Returns a (category, question) based on the current stage and user emotion.
+    Nervous emotions (fear, sad, surprise) trigger more calming questions.
     """
-    return random.choice(_QUESTIONS)
+    state = "nervous" if emotion in ["fear", "sad", "surprise"] else "calm"
+    pool = _QUESTIONS.get(stage, _QUESTIONS["Intro"])[state]
+    return stage, random.choice(pool)
 
-
-def get_question_pool(n: int = 5) -> list[tuple[str, str]]:
-    """
-    Return *n* unique randomly selected questions.
-
-    Args:
-        n: Number of questions to return (clamped to pool size).
-
-    Returns:
-        List of (category, question) tuples.
-    """
-    return random.sample(_QUESTIONS, min(n, len(_QUESTIONS)))
+def get_follow_up(emotion: str) -> tuple[str, str]:
+    """Generates a dynamic follow-up based on emotional state."""
+    state = "nervous" if emotion in ["fear", "sad", "surprise"] else "calm"
+    if state == "nervous":
+        prompts = [
+            "Take your time. Can you elaborate a bit more on that?",
+            "That makes sense. Can you give a small example?",
+            "No rush. How did that experience impact your next steps?"
+        ]
+    else:
+        prompts = [
+            "Interesting point. How would you scale that solution?",
+            "Can you dive deeper into the technical trade-offs you made?",
+            "What was the most challenging part of that specific situation?"
+        ]
+    return "Follow-up", random.choice(prompts)
