@@ -307,3 +307,159 @@ def save_graph(output_dir: str = ".") -> str:
     plt.close(fig)
     print(f"[Summary] Emotion graph saved -> {fpath}")
     return fpath
+
+
+def generate_report_payload(session_info: dict, question_history: list) -> dict:
+    """
+    Compiles full performance metrics and roadmap steps into a dictionary
+    for the browser UI post-session report page.
+    """
+    history = get_history()
+    duration = get_session_duration()
+    dominant = get_dominant_emotion() or "neutral"
+    
+    # 1. Composure Score from history (happy/neutral are high composure)
+    composure_weights = {
+        "happy": 100,
+        "neutral": 100,
+        "surprise": 80,
+        "sad": 60,
+        "disgust": 60,
+        "angry": 40,
+        "fear": 40,
+        "unknown": 70
+    }
+    
+    if history:
+        comp_scores = [composure_weights.get(r["emotion"].lower(), 70) for r in history]
+        composure_score = sum(comp_scores) / len(comp_scores)
+    else:
+        composure_score = 80.0
+        
+    # Composure history array for drawing report chart (sample down to 50 items)
+    raw_comp_history = [composure_weights.get(r["emotion"].lower(), 70) for r in history]
+    if len(raw_comp_history) > 50:
+        indices = np.linspace(0, len(raw_comp_history) - 1, 50, dtype=int)
+        composure_history = [raw_comp_history[i] for i in indices]
+    else:
+        composure_history = raw_comp_history if raw_comp_history else [80, 80]
+        
+    # 2. Confidence Score from average DeepFace dominant confidences
+    if history:
+        conf_score = sum(r["confidence"] for r in history) / len(history)
+    else:
+        conf_score = 75.0
+        
+    # 3. Eye Contact Score
+    eye_contact_score = session_info.get("eye_contact_score", 85.0)
+    
+    # 4. Speaking Pace and Fillers
+    pace = session_info.get("speech", {}).get("pace_wpm", 130.0)
+    fillers = session_info.get("speech", {}).get("filler_words", 0)
+    
+    # 5. Communication Score: Deduct points for WPM pace deviations and filler words
+    pace_diff = abs(pace - 135.0)
+    comm_score = 100.0 - (pace_diff * 1.2) - (fillers * 4.0)
+    comm_score = max(50.0, min(100.0, comm_score))
+    
+    # 6. Overall Score
+    overall_score = (composure_score * 0.40) + (comm_score * 0.35) + (eye_contact_score * 0.25)
+    overall_score = max(40.0, min(100.0, overall_score))
+    
+    # 7. Strengths, Weaknesses, Roadmap compile
+    strengths = []
+    weaknesses = []
+    roadmap = []
+    
+    if composure_score >= 80:
+        strengths.append("Exhibited excellent composure and emotional stability under questioning.")
+    else:
+        weaknesses.append("Showed signs of tension or nervousness under pressure. Focus on deep breathing.")
+        
+    if eye_contact_score >= 80:
+        strengths.append("Maintained strong, consistent virtual eye contact with the camera.")
+    else:
+        weaknesses.append("Frequent loss of camera contact. Look directly at the lens, not the screen.")
+        
+    if comm_score >= 80:
+        strengths.append("Communicated clearly with an appropriate speaking pace.")
+    else:
+        if pace > 145:
+            weaknesses.append("Speaking pace was slightly rushed, making it harder to absorb key points.")
+        elif pace < 115:
+            weaknesses.append("Speaking pace was a bit slow. Try to speak with more energy.")
+        
+        if fillers > 3:
+            weaknesses.append(f"High usage of filler words ({fillers} fillers logged). Practice insertion of structured pauses.")
+            
+    if fillers <= 2:
+        strengths.append("Spoke confidently with minimal use of filler words.")
+        
+    if not strengths:
+        strengths.append("Successfully answered all interview stage questions.")
+        strengths.append("Showed strong commitment to engaging with the interviewer.")
+        
+    # Roadmap items
+    if composure_score < 80 or dominant in ["fear", "sad", "angry"]:
+        roadmap.append("Practice box-breathing (inhale 4s, hold 4s, exhale 4s, hold 4s) to stabilize composure under stress.")
+    else:
+        roadmap.append("Maintain positive composure; practice adding subtle smiles to appear warm and approachable.")
+        
+    if fillers > 2:
+        roadmap.append("Apply the 'Pause Technique': insert a silent 1-second pause when searching for words instead of vocalizing fillers.")
+    else:
+        roadmap.append("Continue to speak clearly; try filming yourself to diversify your technical vocabulary.")
+        
+    if eye_contact_score < 80:
+        roadmap.append("Position your practice window directly below your webcam lens to capture a natural eye line.")
+    else:
+        roadmap.append("Practice virtual eye contact while articulating transition points so it stays consistent.")
+        
+    roadmap.append("Structure answers using the STAR method (Situation, Task, Action, Result) for behavioral questions.")
+    
+    # Question breakdown
+    q_breakdown = []
+    for q in question_history:
+        q_emotions = q.get("emotions", [])
+        if q_emotions:
+            q_dom = max(set(q_emotions), key=q_emotions.count)
+        else:
+            q_dom = "neutral"
+            
+        coaching_notes = "Maintained good engagement."
+        if q_dom in ["fear", "sad", "surprise"]:
+            coaching_notes = "Nervousness detected. Focus on pacing and breathe deeply during transitions."
+        elif q_dom in ["happy", "neutral"]:
+            coaching_notes = "Excellent composure. Approached the topic with confidence and calm."
+        elif q_dom == "angry":
+            coaching_notes = "Some facial tension. Keep jaw relaxed and voice steady."
+            
+        q_breakdown.append({
+            "category": q.get("category", "Intro"),
+            "question": q.get("question", ""),
+            "emotion": q_dom,
+            "coaching_notes": coaching_notes
+        })
+        
+    if not q_breakdown:
+        q_breakdown = [{
+            "category": session_info.get("stage_name", "Intro"),
+            "question": session_info.get("q_text", "Tell me about yourself."),
+            "emotion": dominant,
+            "coaching_notes": "Session summary generated."
+        }]
+        
+    return {
+        "overall_score": round(overall_score, 1),
+        "communication_score": round(comm_score, 1),
+        "confidence_score": round(conf_score, 1),
+        "eye_contact_score": round(eye_contact_score, 1),
+        "average_pace_wpm": round(pace, 1),
+        "strengths": strengths,
+        "weaknesses": weaknesses,
+        "roadmap": roadmap,
+        "question_breakdown": q_breakdown,
+        "duration_sec": round(duration, 1),
+        "composure_history": composure_history
+    }
+

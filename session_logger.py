@@ -110,3 +110,12 @@ def save_csv(output_dir: str = ".") -> str:
 
     print(f"[Logger] CSV saved -> {fpath}")
     return fpath
+
+
+def add_paused_time(seconds: float) -> None:
+    """Adjusts the session start time by adding paused seconds, so duration metrics exclude pauses."""
+    global _session_start
+    if _session_start is not None:
+        from datetime import timedelta
+        _session_start += timedelta(seconds=seconds)
+

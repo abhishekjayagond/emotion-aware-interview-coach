@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Virtual Interview Assistant</title>
+    <!-- Modern Premium Font (Inter) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+    <!-- Main Interactive Session View -->
+    <div id="session-view" class="app-container">
+        <!-- LEFT PANEL: Video feed and Question controls -->
+        <main class="left-panel">
+            <!-- Header Section (Stage & Timer) -->
+            <header class="panel-card stage-bar">
+                <div class="stage-stepper">
+                    <div class="step-indicator" id="stage-badge">Stage --/--</div>
+                    <div class="step-title" id="stage-title">Intro</div>
+                </div>
+                <div class="timer-container">
+                    <span class="rec-badge"><span class="rec-dot"></span>REC</span>
+                    <span id="session-timer" class="timer-digits">00:00</span>
+                </div>
+            </header>
+
+            <!-- Question Card -->
+            <section class="panel-card question-card">
+                <div class="card-tag" id="question-category">QUESTION --</div>
+                <h1 class="question-text" id="question-text">Initializing session. Please wait...</h1>
+            </section>
+
+            <!-- Video Viewport -->
+            <section class="panel-card camera-card">
+                <div class="camera-viewport">
+                    <!-- Stream from Python Server -->
+                    <img id="video-stream" src="/api/video" alt="Interview Feed">
+                    <!-- CSS Bounding Box for Face Tracking -->
+                    <div id="face-box" class="face-box">
+                        <div class="face-box-corner top-left"></div>
+                        <div class="face-box-corner top-right"></div>
+                        <div class="face-box-corner bottom-left"></div>
+                        <div class="face-box-corner bottom-right"></div>
+                        <div class="face-box-tag" id="face-tag">Face Detected</div>
+                    </div>
+                    <!-- Status Overlay if calibrating -->
+                    <div id="calibration-overlay" class="calibration-overlay">
+                        <div class="spinner"></div>
+                        <span id="calibration-status">Calibrating sensors...</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Controls Panel -->
+            <section class="panel-card controls-card">
+                <button id="btn-restart" class="btn btn-secondary" title="Restart current interview session">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+                    Restart
+                </button>
+                <button id="btn-pause" class="btn btn-secondary" title="Pause or Resume current session">
+                    <svg id="svg-pause-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
+                    <span id="btn-pause-text">Pause</span>
+                </button>
+                <div class="nav-controls">
+                    <button id="btn-prev" class="btn btn-secondary" disabled>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+                        Previous
+                    </button>
+                    <button id="btn-next" class="btn btn-primary">
+                        Next
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                    </button>
+                </div>
+                <button id="btn-finish" class="btn btn-danger" title="Finish and view summary report">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/><path d="m9 12 2 2 4-4"/></svg>
+                    Finish Session
+                </button>
+            </section>
+
+            <!-- Live AI Coaching Suggestion Card -->
+            <section class="panel-card coach-card" id="coach-card">
+                <div class="coach-avatar">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a10 10 0 0 1 10 10c0 5.523-4.477 10-10 10S2 17.523 2 12 6.477 2 12 2z"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>
+                </div>
+                <div class="coach-content">
+                    <div class="card-tag">LIVE AI COACH SUGGESTION</div>
+                    <p class="coach-text" id="coach-tip">Focus on framing your face clearly in the camera center to begin analysis.</p>
+                </div>
+            </section>
+        </main>
+
+        <!-- RIGHT PANEL: Live Assistant Dashboard -->
+        <aside class="right-panel">
+            <h2 class="panel-title">Assistant Dashboard</h2>
+
+            <!-- Section: Behavioral State & Confidence Meter -->
+            <div class="panel-card analytics-card">
+                <div class="card-header">
+                    <span class="card-title">Behavioral State</span>
+                    <span id="session-difficulty" class="difficulty-pill">Adaptive (Stable)</span>
+                </div>
+                <div class="behavior-metric-container">
+                    <div class="metric-hero">
+                        <span id="emotion-label" class="emotion-title text-neutral">Calibrating</span>
+                        <span id="emotion-pct" class="emotion-pct">--% confidence</span>
+                    </div>
+                    <!-- Custom progress tracks for confidence scores -->
+                    <div class="confidence-meter-container">
+                        <div class="meter-label">Composure confidence</div>
+                        <div class="meter-track">
+                            <div id="confidence-fill" class="meter-fill" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section: Speech & Communication Analysis -->
+            <div class="panel-card analytics-card">
+                <div class="card-header">
+                    <span class="card-title">Communication Metrics</span>
+                </div>
+                <div class="metrics-grid">
+                    <div class="small-metric-box">
+                        <span class="sm-metric-label">Speaking Pace</span>
+                        <div class="sm-metric-value"><span id="metric-pace">---</span> <span class="unit">wpm</span></div>
+                        <span class="sm-metric-desc" id="metric-pace-desc">Target: 120-150 WPM</span>
+                    </div>
+                    <div class="small-metric-box">
+                        <span class="sm-metric-label">Filler Words</span>
+                        <div class="sm-metric-value text-warning" id="metric-fillers">0</div>
+                        <span class="sm-metric-desc">Um, Uh, Like, You know</span>
+                    </div>
+                    <div class="small-metric-box">
+                        <span class="sm-metric-label">Response Time</span>
+                        <div class="sm-metric-value"><span id="metric-rt">--.-</span> <span class="unit">sec</span></div>
+                        <span class="sm-metric-desc">Time since question began</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section: Emotional Trends (Live Line-Chart SVG) -->
+            <div class="panel-card analytics-card chart-card">
+                <div class="card-header">
+                    <span class="card-title">Composure History</span>
+                    <span class="card-subtitle">Real-time emotional tracking</span>
+                </div>
+                <div class="live-chart-container">
+                    <svg id="live-trend-chart" viewBox="0 0 300 100" preserveAspectRatio="none">
+                        <defs>
+                            <linearGradient id="chart-glow" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stop-color="#4F46E5" stop-opacity="0.2"/>
+                                <stop offset="100%" stop-color="#4F46E5" stop-opacity="0"/>
+                            </linearGradient>
+                        </defs>
+                        <!-- Grid lines -->
+                        <line x1="0" y1="25" x2="300" y2="25" stroke="rgba(0,0,0,0.04)" stroke-dasharray="4"/>
+                        <line x1="0" y1="50" x2="300" y2="50" stroke="rgba(0,0,0,0.04)" stroke-dasharray="4"/>
+                        <line x1="0" y1="75" x2="300" y2="75" stroke="rgba(0,0,0,0.04)" stroke-dasharray="4"/>
+                        <!-- Chart path filled -->
+                        <path id="chart-area" d="M0,100 L300,100 Z" fill="url(#chart-glow)"/>
+                        <!-- Chart line -->
+                        <path id="chart-line" d="" fill="none" stroke="#4F46E5" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                </div>
+            </div>
+
+            <!-- Section: Talking Points & Expectations -->
+            <div class="panel-card expectations-card">
+                <div class="card-header">
+                    <span class="card-title">Interview Expectations</span>
+                </div>
+                <ul class="bullet-list" id="expectations-list">
+                    <li>Structure answers using the <strong>STAR</strong> method (Situation, Task, Action, Result).</li>
+                    <li>Avoid rushing; pause for 2-3 seconds to formulate your thoughts.</li>
+                    <li>Ensure you make consistent virtual eye contact with the lens.</li>
+                </ul>
+            </div>
+        </aside>
+    </div>
+
+    <!-- Final Post-Session Report Dashboard Overlay -->
+    <div id="report-view" class="app-container hidden">
+        <main class="report-container">
+            <header class="report-header panel-card">
+                <div class="header-intro">
+                    <span class="card-tag">COMPLETED INTERVIEW</span>
+                    <h1>Performance Analysis Report</h1>
+                    <p id="report-timestamp">Generated on July 12, 2026</p>
+                </div>
+                <div class="score-hero">
+                    <div class="radial-progress">
+                        <svg viewBox="0 0 100 100">
+                            <circle cx="50" cy="50" r="40" class="radial-track" />
+                            <circle cx="50" cy="50" r="40" class="radial-fill" id="report-score-ring" />
+                        </svg>
+                        <div class="radial-center">
+                            <span id="report-overall-score" class="score-value">85</span>
+                            <span class="score-total">/100</span>
+                        </div>
+                    </div>
+                    <div class="score-label">Overall Score</div>
+                </div>
+            </header>
+
+            <div class="report-grid">
+                <!-- Left panel: Performance Metrics breakdown -->
+                <section class="report-main">
+                    <!-- Key Core Metrics Cards -->
+                    <div class="panel-card report-metrics">
+                        <h2 class="section-title">Evaluation Breakdown</h2>
+                        <div class="metrics-grid">
+                            <div class="small-metric-box">
+                                <span class="sm-metric-label">Communication Score</span>
+                                <div class="sm-metric-value"><span id="report-comm-score">--</span> <span class="unit">%</span></div>
+                                <div class="meter-track sm"><div id="bar-comm" class="meter-fill" style="width: 0%"></div></div>
+                            </div>
+                            <div class="small-metric-box">
+                                <span class="sm-metric-label">Confidence Score</span>
+                                <div class="sm-metric-value"><span id="report-conf-score">--</span> <span class="unit">%</span></div>
+                                <div class="meter-track sm"><div id="bar-conf" class="meter-fill" style="width: 0%"></div></div>
+                            </div>
+                            <div class="small-metric-box">
+                                <span class="sm-metric-label">Eye Contact Score</span>
+                                <div class="sm-metric-value"><span id="report-eye-score">--</span> <span class="unit">%</span></div>
+                                <div class="meter-track sm"><div id="bar-eye" class="meter-fill" style="width: 0%"></div></div>
+                            </div>
+                            <div class="small-metric-box">
+                                <span class="sm-metric-label">Speaking Pace</span>
+                                <div class="sm-metric-value"><span id="report-pace-val">--</span> <span class="unit">wpm</span></div>
+                                <div class="sm-metric-desc" id="report-pace-desc">Optimal: 130 WPM</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Strengths and Weaknesses -->
+                    <div class="report-split-cards">
+                        <div class="panel-card strength-card">
+                            <h3 class="card-title text-success">Core Strengths</h3>
+                            <ul class="bullet-list" id="report-strengths">
+                                <li>Great composure, neutral facial features.</li>
+                                <li>Approachable smile.</li>
+                            </ul>
+                        </div>
+                        <div class="panel-card weakness-card">
+                            <h3 class="card-title text-danger">Areas of Focus</h3>
+                            <ul class="bullet-list" id="report-weaknesses">
+                                <li>Filler word frequency.</li>
+                                <li>Fluctuations in speed.</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- Question Breakdown Timeline -->
+                    <div class="panel-card question-timeline-card">
+                        <h2 class="section-title">Question-by-Question Analysis</h2>
+                        <div class="timeline-container" id="report-questions-timeline">
+                            <!-- Populated by JavaScript -->
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Right panel: Insights, roadmap and exit controls -->
+                <aside class="report-side">
+                    <!-- Emotional Consistency Chart -->
+                    <div class="panel-card side-analysis-card">
+                        <div class="card-header">
+                            <span class="card-title">Emotional Timeline</span>
+                        </div>
+                        <div class="report-chart-container">
+                            <svg id="report-history-chart" viewBox="0 0 300 120" preserveAspectRatio="none">
+                                <!-- Grid -->
+                                <line x1="0" y1="30" x2="300" y2="30" stroke="rgba(0,0,0,0.04)" stroke-dasharray="4"/>
+                                <line x1="0" y1="60" x2="300" y2="60" stroke="rgba(0,0,0,0.04)" stroke-dasharray="4"/>
+                                <line x1="0" y1="90" x2="300" y2="90" stroke="rgba(0,0,0,0.04)" stroke-dasharray="4"/>
+                                <!-- Chart Area -->
+                                <path id="rep-chart-area" d="M0,120 L300,120 Z" fill="rgba(79, 70, 229, 0.1)"/>
+                                <path id="rep-chart-line" d="" fill="none" stroke="#4F46E5" stroke-width="2"/>
+                            </svg>
+                            <div class="chart-axis-labels">
+                                <span>Start</span>
+                                <span id="report-total-duration">--:--</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Improvement Roadmap Card -->
+                    <div class="panel-card roadmap-card">
+                        <h3 class="card-title">Personalized Improvement Roadmap</h3>
+                        <div class="roadmap-steps" id="report-roadmap">
+                            <!-- Populated dynamically -->
+                        </div>
+                    </div>
+
+                    <!-- Exit options -->
+                    <div class="panel-card report-actions">
+                        <button id="btn-report-restart" class="btn btn-primary w-full">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+                            Practice Again
+                        </button>
+                        <button id="btn-report-exit" class="btn btn-secondary w-full">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                            Quit Application
+                        </button>
+                    </div>
+                </aside>
+            </div>
+        </main>
+    </div>
+
+    <!-- Core App JS -->
+    <script src="/app.js"></script>
+</body>
+</html>
