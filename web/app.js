@@ -7,7 +7,9 @@
  */
 
 // Keep track of composure history points
-let composureHistory = [];
+// Keep track of composure history points (initialize with flat baseline)
+let composureHistory = Array(30).fill(100);
+let hasRealData = false;
 const maxHistoryPoints = 60; // ~60 seconds of history
 
 // DOM elements - Views
@@ -223,11 +225,32 @@ function updateSessionUI(state) {
         const frameW = state.frame_width || 640;
         const frameH = state.frame_height || 480;
         
-        // Calculate percentages
-        const leftPct = (boxX / frameW) * 100;
-        const topPct = (boxY / frameH) * 100;
-        const widthPct = (boxW / frameW) * 100;
-        const heightPct = (boxH / frameH) * 100;
+        // Rendered dimensions of the image container in browser
+        const vW = videoStream.clientWidth || 640;
+        const vH = videoStream.clientHeight || 360;
+        
+        // Calculate the scale factor for object-fit: cover
+        const scale = Math.max(vW / frameW, vH / frameH);
+        
+        // Rendered size of the video feed
+        const rW = frameW * scale;
+        const rH = frameH * scale;
+        
+        // Offset because video is centered
+        const offsetX = (vW - rW) / 2;
+        const offsetY = (vH - rH) / 2;
+        
+        // Target coordinates in pixels relative to viewport
+        const pixelX = boxX * scale + offsetX;
+        const pixelY = boxY * scale + offsetY;
+        const pixelW = boxW * scale;
+        const pixelH = boxH * scale;
+        
+        // Convert to percentage offsets for positioning the overlay box
+        const leftPct = (pixelX / vW) * 100;
+        const topPct = (pixelY / vH) * 100;
+        const widthPct = (pixelW / vW) * 100;
+        const heightPct = (pixelH / vH) * 100;
         
         faceBox.style.left = `${leftPct}%`;
         faceBox.style.top = `${topPct}%`;
@@ -248,6 +271,10 @@ function updateSessionUI(state) {
     if (state.state !== "CALIBRATING" && state.elapsed > 0) {
         // Compose score is 100 - nervousness deduction
         const compScore = Math.max(0, Math.min(100, state.composure_score || 100));
+        if (!hasRealData) {
+            composureHistory = [];
+            hasRealData = true;
+        }
         composureHistory.push(compScore);
         if (composureHistory.length > maxHistoryPoints) {
             composureHistory.shift();
@@ -321,14 +348,37 @@ function populateReportView(data) {
 
     // 1. Overall Score Ring animation
     const score = Math.round(data.overall_score || 80);
-    reportOverallScore.textContent = score;
     
     // SVG radial progress logic
-    // Circle circumference is 2 * PI * r = 2 * 3.14159 * 40 = 251.2
-    const radius = 40;
+    // Circle circumference is 2 * PI * r = 2 * 3.14159 * 85 = 534.07
+    const radius = 85;
     const circ = 2 * Math.PI * radius;
-    const offset = circ - (score / 100) * circ;
-    reportScoreRing.style.strokeDashoffset = offset;
+    
+    // Add smooth score count-up animation
+    reportOverallScore.textContent = "0";
+    reportScoreRing.style.strokeDashoffset = circ;
+    
+    const animationDuration = 1200; // 1.2s to match transition
+    const startTime = performance.now();
+    
+    function animateGauge(time) {
+        const elapsed = time - startTime;
+        const progress = Math.min(elapsed / animationDuration, 1);
+        
+        // Easing function (easeOutQuad)
+        const easeProgress = progress * (2 - progress);
+        
+        const animatedScore = Math.round(easeProgress * score);
+        reportOverallScore.textContent = animatedScore;
+        
+        const currentOffset = circ - (easeProgress * (score / 100)) * circ;
+        reportScoreRing.style.strokeDashoffset = currentOffset;
+        
+        if (progress < 1) {
+            requestAnimationFrame(animateGauge);
+        }
+    }
+    requestAnimationFrame(animateGauge);
 
     // Apply color highlights based on score range
     let ringColor = "#4F46E5"; // indigo
@@ -393,6 +443,46 @@ function populateReportView(data) {
         reportWeaknessesList.appendChild(li);
     });
 
+    // Populate Strongest and Weakest answer text
+    document.getElementById("report-strongest").textContent = data.strongest_answer || "No response logged.";
+    document.getElementById("report-weakest").textContent = data.weakest_answer || "No response logged.";
+
+    // Render Emotion Distribution bars
+    const distContainer = document.getElementById("report-emotion-distribution");
+    if (distContainer) {
+        distContainer.innerHTML = "";
+        const sortedEmos = Object.entries(data.emotion_distribution || {})
+            .sort((a, b) => b[1] - a[1]);
+            
+        sortedEmos.forEach(([emo, pct]) => {
+            if (pct <= 0) return;
+            const cleanEmo = emo.charAt(0).toUpperCase() + emo.slice(1);
+            
+            const trackRow = document.createElement("div");
+            trackRow.style.cssText = "display: flex; flex-direction: column; gap: 4px; margin-bottom: 4px;";
+            
+            const labels = document.createElement("div");
+            labels.style.cssText = "display: flex; justify-content: space-between; font-size: 0.72rem; font-weight: 600; color: var(--text-secondary);";
+            labels.innerHTML = `<span>${cleanEmo}</span><span>${pct}%</span>`;
+            
+            const barTrack = document.createElement("div");
+            barTrack.style.cssText = "height: 6px; background-color: var(--bg-hover); border-radius: 3px; overflow: hidden;";
+            
+            const barFill = document.createElement("div");
+            barFill.style.cssText = `height: 100%; width: 0%; background-color: ${getEmotionColorHex(emo)}; border-radius: 3px; transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);`;
+            
+            barTrack.appendChild(barFill);
+            trackRow.appendChild(labels);
+            trackRow.appendChild(barTrack);
+            distContainer.appendChild(trackRow);
+            
+            // Trigger transition animation smoothly
+            setTimeout(() => {
+                barFill.style.width = `${pct}%`;
+            }, 50);
+        });
+    }
+
     // 4. Personalized Roadmap Steps
     reportRoadmap.innerHTML = "";
     (data.roadmap || []).forEach((step, idx) => {
@@ -438,7 +528,18 @@ function populateReportView(data) {
 
         const notes = document.createElement("div");
         notes.className = "timeline-notes";
-        notes.textContent = item.coaching_notes || "Consistent composure maintained.";
+        notes.style.cssText = "font-size: 0.8rem; color: var(--text-secondary); background-color: var(--bg-base); padding: 10px 14px; border-radius: 12px; width: 100%; display: flex; flex-direction: column; gap: 6px; margin-top: 8px; border: 1px solid var(--border-light);";
+        
+        let metricsHtml = `
+            <div style="display: flex; gap: 16px; font-size: 0.72rem; font-weight: 600; color: var(--text-muted); border-bottom: 1px solid rgba(0,0,0,0.04); padding-bottom: 4px; margin-bottom: 2px;">
+                <span>Pace: <strong style="color: var(--text-primary);">${Math.round(item.pace_wpm || 130)} WPM</strong></span>
+                <span>Fillers: <strong style="color: ${item.filler_words > 2 ? 'var(--danger)' : 'var(--success)'};">${item.filler_words || 0}</strong></span>
+                <span>Response Time: <strong style="color: var(--text-primary);">${(item.response_time || 0).toFixed(1)}s</strong></span>
+                <span>Composure: <strong style="color: var(--primary);">${Math.round(item.composure_score || 80)}%</strong></span>
+            </div>
+            <div style="line-height: 1.4; color: var(--text-primary);">${item.coaching_notes || "Consistent composure maintained."}</div>
+        `;
+        notes.innerHTML = metricsHtml;
 
         timelineItem.appendChild(header);
         timelineItem.appendChild(question);
@@ -462,6 +563,20 @@ function getScoreColor(val) {
     if (val >= 70) return "var(--primary)";
     if (val >= 55) return "var(--warning)";
     return "var(--danger)";
+}
+
+function getEmotionColorHex(emo) {
+    const colors = {
+        happy: "#16A34A",
+        neutral: "#9CA3AF",
+        sad: "#0284C7",
+        angry: "#DC2626",
+        fear: "#7C3AED",
+        surprise: "#EA580C",
+        disgust: "#0D9488",
+        unknown: "#9CA3AF"
+    };
+    return colors[emo.toLowerCase()] || colors.unknown;
 }
 
 function drawReportHistoryChart(history) {
@@ -595,5 +710,6 @@ document.addEventListener("keydown", (e) => {
     }
 });
 
-// Initialize on page load
+// Initialize live baseline chart and connect SSE
+drawLiveTrendChart();
 connectSSE();

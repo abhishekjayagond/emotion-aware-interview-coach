@@ -192,9 +192,9 @@
                 </div>
                 <div class="score-hero">
                     <div class="radial-progress">
-                        <svg viewBox="0 0 100 100">
-                            <circle cx="50" cy="50" r="40" class="radial-track" />
-                            <circle cx="50" cy="50" r="40" class="radial-fill" id="report-score-ring" />
+                        <svg viewBox="0 0 200 200">
+                            <circle cx="100" cy="100" r="85" class="radial-track" />
+                            <circle cx="100" cy="100" r="85" class="radial-fill" id="report-score-ring" />
                         </svg>
                         <div class="radial-center">
                             <span id="report-overall-score" class="score-value">85</span>
@@ -253,6 +253,18 @@
                         </div>
                     </div>
 
+                    <!-- Strongest & Weakest Answers -->
+                    <div class="report-split-cards">
+                        <div class="panel-card strongest-card">
+                            <h4 class="card-title text-success" style="font-size: 0.8rem; font-weight: 700; text-transform: uppercase; margin-bottom: 6px; letter-spacing: 0.05em;">Strongest Response</h4>
+                            <p id="report-strongest" class="report-highlight-text" style="font-size: 0.82rem; line-height: 1.5; color: var(--text-secondary);">Analyzing strongest response...</p>
+                        </div>
+                        <div class="panel-card weakest-card">
+                            <h4 class="card-title text-danger" style="font-size: 0.8rem; font-weight: 700; text-transform: uppercase; margin-bottom: 6px; letter-spacing: 0.05em;">Weakest Response</h4>
+                            <p id="report-weakest" class="report-highlight-text" style="font-size: 0.82rem; line-height: 1.5; color: var(--text-secondary);">Analyzing weakest response...</p>
+                        </div>
+                    </div>
+
                     <!-- Question Breakdown Timeline -->
                     <div class="panel-card question-timeline-card">
                         <h2 class="section-title">Question-by-Question Analysis</h2>
@@ -283,6 +295,16 @@
                                 <span>Start</span>
                                 <span id="report-total-duration">--:--</span>
                             </div>
+                        </div>
+                    </div>
+
+                    <!-- Emotion Distribution Card -->
+                    <div class="panel-card emotion-dist-card">
+                        <div class="card-header" style="margin-bottom: var(--space-1);">
+                            <span class="card-title">Emotion Distribution</span>
+                        </div>
+                        <div id="report-emotion-distribution" class="emotion-dist-container" style="display: flex; flex-direction: column; gap: 8px;">
+                            <!-- Populated dynamically with percentage tracks -->
                         </div>
                     </div>
 

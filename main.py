@@ -55,6 +55,7 @@ class InterviewSessionManager:
         self.asked_questions = []
         self.current_asked_idx = -1
         self.emotions_by_q_idx = {}
+        self.speech_by_q_idx = {}
         
         # Probe metrics for Eye Contact percentage
         self.total_probes = 0
@@ -62,7 +63,20 @@ class InterviewSessionManager:
         
         self.advance_question()
         
+    def record_current_q_metrics(self):
+        if self.current_asked_idx >= 0:
+            total_fillers_before = sum(self.speech_by_q_idx.get(i, {"filler_words": 0})["filler_words"] for i in range(self.current_asked_idx))
+            q_fillers = self.speech["filler_words"] - total_fillers_before
+            q_fillers = max(0, q_fillers)
+            
+            self.speech_by_q_idx[self.current_asked_idx] = {
+                "pace_wpm": self.speech["pace_wpm"],
+                "filler_words": q_fillers,
+                "response_time": self.speech["response_time"]
+            }
+
     def advance_question(self):
+        self.record_current_q_metrics()
         # If we are navigating history and click next, resume the next pre-generated question
         if self.current_asked_idx < len(self.asked_questions) - 1:
             self.current_asked_idx += 1
@@ -88,6 +102,7 @@ class InterviewSessionManager:
         self.q_count = self.current_asked_idx + 1
         
     def previous_question(self):
+        self.record_current_q_metrics()
         if self.current_asked_idx > 0:
             self.current_asked_idx -= 1
             self.current_q = self.asked_questions[self.current_asked_idx]
@@ -237,12 +252,21 @@ def main() -> None:
             # If showing report, we enter an idle CPU-saving state
             if show_summary:
                 # Compile final report summary
+                session_manager.record_current_q_metrics()
                 q_hist = []
                 for idx, (cat, text) in enumerate(session_manager.asked_questions):
+                    q_speech = session_manager.speech_by_q_idx.get(idx, {
+                        "pace_wpm": 130.0,
+                        "filler_words": 0,
+                        "response_time": 0.0
+                    })
                     q_hist.append({
                         "category": cat,
                         "question": text,
-                        "emotions": session_manager.emotions_by_q_idx.get(idx, [])
+                        "emotions": session_manager.emotions_by_q_idx.get(idx, []),
+                        "pace_wpm": q_speech["pace_wpm"],
+                        "filler_words": q_speech["filler_words"],
+                        "response_time": q_speech["response_time"]
                     })
                 
                 # Eye contact percentage calculation

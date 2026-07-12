@@ -311,8 +311,8 @@ def save_graph(output_dir: str = ".") -> str:
 
 def generate_report_payload(session_info: dict, question_history: list) -> dict:
     """
-    Compiles full performance metrics and roadmap steps into a dictionary
-    for the browser UI post-session report page.
+    Compiles full performance metrics, composure trends, and roadmap steps into a
+    dictionary for the browser UI post-session report page.
     """
     history = get_history()
     duration = get_session_duration()
@@ -344,6 +344,11 @@ def generate_report_payload(session_info: dict, question_history: list) -> dict:
     else:
         composure_history = raw_comp_history if raw_comp_history else [80, 80]
         
+    # Calculate Emotion Distribution
+    counts = get_emotion_counts()
+    total_readings = sum(counts.values()) or 1
+    emotion_dist = {emo: round((count / total_readings) * 100, 1) for emo, count in counts.items()}
+        
     # 2. Confidence Score from average DeepFace dominant confidences
     if history:
         conf_score = sum(r["confidence"] for r in history) / len(history)
@@ -366,6 +371,61 @@ def generate_report_payload(session_info: dict, question_history: list) -> dict:
     overall_score = (composure_score * 0.40) + (comm_score * 0.35) + (eye_contact_score * 0.25)
     overall_score = max(40.0, min(100.0, overall_score))
     
+    # Calculate Question Breakdown and Composure scores per question
+    q_breakdown = []
+    strongest_q = None
+    weakest_q = None
+    max_q_comp = -1.0
+    min_q_comp = 101.0
+    
+    for idx, q in enumerate(question_history):
+        q_emotions = q.get("emotions", [])
+        if q_emotions:
+            q_dom = max(set(q_emotions), key=q_emotions.count)
+            q_comp_score = sum(composure_weights.get(e.lower(), 70) for e in q_emotions) / len(q_emotions)
+        else:
+            q_dom = "neutral"
+            q_comp_score = 80.0
+            
+        coaching_notes = "Maintained good engagement."
+        if q_dom in ["fear", "sad", "surprise"]:
+            coaching_notes = "Nervousness detected. Focus on pacing and breathe deeply during transitions."
+        elif q_dom in ["happy", "neutral"]:
+            coaching_notes = "Excellent composure. Approached the topic with confidence and calm."
+        elif q_dom == "angry":
+            coaching_notes = "Some facial tension. Keep jaw relaxed and voice steady."
+            
+        q_data = {
+            "category": q.get("category", "Intro"),
+            "question": q.get("question", ""),
+            "emotion": q_dom,
+            "coaching_notes": coaching_notes,
+            "pace_wpm": round(q.get("pace_wpm", 130.0), 1),
+            "filler_words": int(q.get("filler_words", 0)),
+            "response_time": round(q.get("response_time", 0.0), 1),
+            "composure_score": round(q_comp_score, 1)
+        }
+        q_breakdown.append(q_data)
+        
+        # Track strongest and weakest answers based on composure
+        if q_comp_score > max_q_comp:
+            max_q_comp = q_comp_score
+            strongest_q = q_data
+        if q_comp_score < min_q_comp:
+            min_q_comp = q_comp_score
+            weakest_q = q_data
+
+    # Formatting text indicators for strongest/weakest answers
+    if not strongest_q:
+        strongest_answer = "No responses logged."
+    else:
+        strongest_answer = f"Question #{question_history.index(next(x for x in question_history if x['question'] == strongest_q['question'])) + 1} ({strongest_q['category']}): \"{strongest_q['question']}\" — You demonstrated excellent stability and composure."
+        
+    if not weakest_q:
+        weakest_answer = "No responses logged."
+    else:
+        weakest_answer = f"Question #{question_history.index(next(x for x in question_history if x['question'] == weakest_q['question'])) + 1} ({weakest_q['category']}): \"{weakest_q['question']}\" — Signs of visual distress or nervousness were detected; focus on breathing exercises here."
+
     # 7. Strengths, Weaknesses, Roadmap compile
     strengths = []
     weaknesses = []
@@ -417,36 +477,16 @@ def generate_report_payload(session_info: dict, question_history: list) -> dict:
         
     roadmap.append("Structure answers using the STAR method (Situation, Task, Action, Result) for behavioral questions.")
     
-    # Question breakdown
-    q_breakdown = []
-    for q in question_history:
-        q_emotions = q.get("emotions", [])
-        if q_emotions:
-            q_dom = max(set(q_emotions), key=q_emotions.count)
-        else:
-            q_dom = "neutral"
-            
-        coaching_notes = "Maintained good engagement."
-        if q_dom in ["fear", "sad", "surprise"]:
-            coaching_notes = "Nervousness detected. Focus on pacing and breathe deeply during transitions."
-        elif q_dom in ["happy", "neutral"]:
-            coaching_notes = "Excellent composure. Approached the topic with confidence and calm."
-        elif q_dom == "angry":
-            coaching_notes = "Some facial tension. Keep jaw relaxed and voice steady."
-            
-        q_breakdown.append({
-            "category": q.get("category", "Intro"),
-            "question": q.get("question", ""),
-            "emotion": q_dom,
-            "coaching_notes": coaching_notes
-        })
-        
     if not q_breakdown:
         q_breakdown = [{
             "category": session_info.get("stage_name", "Intro"),
             "question": session_info.get("q_text", "Tell me about yourself."),
             "emotion": dominant,
-            "coaching_notes": "Session summary generated."
+            "coaching_notes": "Session summary generated.",
+            "pace_wpm": round(pace, 1),
+            "filler_words": int(fillers),
+            "response_time": 0.0,
+            "composure_score": 80.0
         }]
         
     return {
@@ -460,6 +500,9 @@ def generate_report_payload(session_info: dict, question_history: list) -> dict:
         "roadmap": roadmap,
         "question_breakdown": q_breakdown,
         "duration_sec": round(duration, 1),
-        "composure_history": composure_history
+        "composure_history": composure_history,
+        "emotion_distribution": emotion_dist,
+        "strongest_answer": strongest_answer,
+        "weakest_answer": weakest_answer
     }
 
